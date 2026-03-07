@@ -381,9 +381,9 @@ tables:
       - { name: id,          type: INT AUTO_INCREMENT, nullable: false, pk: true }
       - { name: kingdom_id,  type: VARCHAR(255),       nullable: false, fk: kingdoms.id }
       - { name: clan,        xsd_attr: clan,           type: VARCHAR(255), nullable: true, note: "書式: Faction.xxx" }
-      - { name: kingdom_ref, xsd_attr: kingdom,        type: VARCHAR(255), nullable: true, note: "書式: Kingdom.xxx" }
-      - { name: value,       xsd_attr: value,          type: INT,          nullable: false }
-      - { name: is_at_war,   xsd_attr: isAtWar,        type: BOOLEAN,      nullable: true }
+      - { name: kingdom_ref, xsd_attr: kingdom,   type: VARCHAR(255), nullable: true, note: "XSD属性名はkingdom。kingdom_id(FK)との衝突回避のためリネーム。書式: Kingdom.xxx" }
+      - { name: value,       xsd_attr: value,      type: INT,          nullable: false }
+      - { name: isAtWar,     xsd_attr: isAtWar,    type: BOOLEAN,      nullable: true }
 
   # ---------------------------------------------------------------------------
   - name: kingdom_policies
@@ -428,7 +428,7 @@ tables:
       - { name: start_point_position_y,                  xsd_attr: start_point_position_y,                   type: FLOAT,        nullable: true,             xsd_use: optional }
 
   # ---------------------------------------------------------------------------
-  - name: culture_npc_roles
+  - name: culture_role_refs
     source_xsd: SPCultures.xsd
     source_path: "SPCultures/Culture@[role_attrs]"
     relationship: "1:N"
@@ -437,10 +437,12 @@ tables:
     note: >
       XSD上は約60個の独立属性だが正規化のため縦持ち化。
       role_nameはXSD属性名をそのまま使用。
+      ref_idの書式はrole_nameにより異なり、NPCCharacter.xxx（blacksmith等）
+      またはPartyTemplate.xxx（default_party_template等）のいずれかとなる。
     columns:
       - { name: culture_id,  type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id }
       - { name: role_name,   type: VARCHAR(255), nullable: false, pk_order: 2 }
-      - { name: npc_id,      type: VARCHAR(255), nullable: false }
+      - { name: ref_id,      type: VARCHAR(255), nullable: false, note: "書式: NPCCharacter.xxx または PartyTemplate.xxx（role_nameにより異なる）" }
 
   # 以下、cultures の子要素テーブル（共通パターン: 複合PK = culture_id + 値カラム）
   - { name: culture_caravan_party_templates,                source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/caravan_party_templates/caravan_party_template",               relationship: "1:N", parent: cultures, primary_key: [culture_id, template_id], columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: template_id, xsd_attr: id, type: VARCHAR(255), nullable: false, pk_order: 2}] }

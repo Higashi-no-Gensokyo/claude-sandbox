@@ -16,10 +16,11 @@
 ### 2.1. 基本方針
 
 - `.xsd` のタグ名 → テーブル名
-- `.xsd` の属性名 → カラム名
+- `.xsd` の属性名 → カラム名（**スペルをXSD属性名と完全一致させる。camelCase→snake_case等の変換不可**）
 - `.xsd` の属性型 → MySQLカラム型（型マッピングは下記参照）
 - 入れ子構造（親子タグ）→ 別テーブルに分離し、FOREIGN KEY で結合
 - 正規化を優先（結合より正規化）
+- 子テーブルにおける `id` 属性は、参照先との区別がつかない場合に限り `{参照先を表す接頭辞}_id` にリネームする（例: `skill > id` → `skill_id`、`upgrade_target > id` → `target_npc_character_id`）。リネームした場合は備考にXSD属性名（`id`）を明記する
 
 ### 2.2. 型マッピング
 
@@ -134,7 +135,7 @@
 |テーブル種別|子テーブル（1:N）|
 |親テーブル|`npc_characters`|
 |子テーブル|無し|
-|変換元スキーマ要素|`face > hair_tags > hair_tag`|
+|変換元スキーマ要素|`NPCCharacter > face > hair_tags > hair_tag`|
 |変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
@@ -155,7 +156,7 @@ PRIMARY KEY: `(npc_character_id, name)`
 |テーブル種別|子テーブル（1:N）|
 |親テーブル|`npc_characters`|
 |子テーブル|無し|
-|変換元スキーマ要素|`face > beard_tags > beard_tag`|
+|変換元スキーマ要素|`NPCCharacter > face > beard_tags > beard_tag`|
 |変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
@@ -176,7 +177,7 @@ PRIMARY KEY: `(npc_character_id, name)`
 |テーブル種別|子テーブル（1:N）|
 |親テーブル|`npc_characters`|
 |子テーブル|無し|
-|変換元スキーマ要素|`face > tattoo_tags > tattoo_tag`|
+|変換元スキーマ要素|`NPCCharacter > face > tattoo_tags > tattoo_tag`|
 |変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
@@ -203,10 +204,7 @@ PRIMARY KEY: `(npc_character_id, name)`
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | npc_character_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → npc_characters.id |
-| skill_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-| value | INT | NOT NULL | |
-
-PRIMARY KEY: `(npc_character_id, skill_id)`
+| skill_id | VARCHAR(255) | NOT NULL | XSD属性名は `id`。npc_character_id との区別のためリネーム。複合PK（2/2） |
 
 ---
 
@@ -225,10 +223,7 @@ PRIMARY KEY: `(npc_character_id, skill_id)`
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | npc_character_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → npc_characters.id |
-| trait_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-| value | INT | NOT NULL | |
-
-PRIMARY KEY: `(npc_character_id, trait_id)`
+| trait_id | VARCHAR(255) | NOT NULL | XSD属性名は `id`。npc_character_id との区別のためリネーム。複合PK（2/2） |
 
 ---
 
@@ -247,10 +242,7 @@ PRIMARY KEY: `(npc_character_id, trait_id)`
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | npc_character_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → npc_characters.id |
-| feat_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-| value | INT | NOT NULL | |
-
-PRIMARY KEY: `(npc_character_id, feat_id)`
+| feat_id | VARCHAR(255) | NOT NULL | XSD属性名は `id`。npc_character_id との区別のためリネーム。複合PK（2/2） |
 
 ---
 
@@ -269,7 +261,7 @@ PRIMARY KEY: `(npc_character_id, feat_id)`
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | npc_character_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → npc_characters.id |
-| target_npc_character_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） FK → npc_characters.id（自己参照）書式: NPCCharacter.xxx |
+| target_npc_character_id | VARCHAR(255) | NOT NULL | XSD属性名は `id`。npc_character_id との区別のためリネーム。複合PK（2/2） FK → npc_characters.id（自己参照）書式: NPCCharacter.xxx |
 
 PRIMARY KEY: `(npc_character_id, target_npc_character_id)`
 
@@ -304,7 +296,7 @@ PRIMARY KEY: `(npc_character_id, target_npc_character_id)`
 |テーブル種別|子テーブル（1:N）|
 |親テーブル|`npc_character_equipment_rosters`|
 |子テーブル|無し|
-|変換元スキーマ要素|`EquipmentRoster > equipment`|
+|変換元スキーマ要素|`NPCCharacter > Equipments > EquipmentRoster > equipment`|
 |変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
@@ -345,7 +337,7 @@ PRIMARY KEY: `(npc_character_id, set_id)`
 |項目|説明|
 |:--|:--|
 |テーブル名|`npc_character_hero`|
-|説明|NPCCharacters.xsd の Hero 子要素を格納する。hero_id は Heroes.xsd の heroes テーブルへの参照であり、2つのXSDにまたがる連結関係を表す。|
+|説明|NPCCharacters.xsd の `NPCCharacter > Hero` 子要素を格納する。`Hero` 要素はNPCのヒーロー属性（所属派閥・家族関係等）を保持し、Heroes.xsd 由来の `heroes` テーブルへの参照（`hero_id`）を持つ。2つのXSDにまたがる連結関係を表す唯一のテーブル。|
 |テーブル種別|子テーブル（1:1）|
 |親テーブル|`npc_characters`|
 |子テーブル|無し|
@@ -355,7 +347,7 @@ PRIMARY KEY: `(npc_character_id, set_id)`
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | npc_character_id | VARCHAR(255) | NOT NULL | PK 兼 FK → npc_characters.id |
-| hero_id | VARCHAR(255) | NOT NULL | FK → heroes.id（Heroes.xsdとの連結） |
+| hero_id | VARCHAR(255) | NOT NULL | XSD属性名は `id`。npc_character_id との区別のためリネーム。FK → heroes.id（Heroes.xsdとの連結） |
 | banner_key | VARCHAR(255) | NULL | |
 | text | TEXT | NULL | |
 | spouse | VARCHAR(255) | NULL | |
@@ -377,7 +369,7 @@ PRIMARY KEY: `(npc_character_id, set_id)`
 |テーブル種別|子テーブル（1:N）|
 |親テーブル|`npc_characters`|
 |子テーブル|無し|
-|変換元スキーマ要素|`Components > Companion`|
+|変換元スキーマ要素|`NPCCharacter > Components > Companion`|
 |変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
@@ -398,7 +390,7 @@ PRIMARY KEY: `(npc_character_id, companion_id)`
 |テーブル種別|子テーブル（1:N）|
 |親テーブル|`npc_characters`|
 |子テーブル|無し|
-|変換元スキーマ要素|`Components > Lord`|
+|変換元スキーマ要素|`NPCCharacter > Components > Lord`|
 |変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
@@ -535,13 +527,13 @@ PRIMARY KEY: `(npc_character_id, lord_id)`
 |テーブル種別|子テーブル（1:N）|
 |親テーブル|`factions`|
 |子テーブル|無し|
-|変換元スキーマ要素|`Faction > minor_faction_templates > template`|
+|変換元スキーマ要素|`Faction > minor_faction_character_templates > template`|
 |変換元スキーマ定義ファイル|`Factions.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | faction_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → factions.id |
-| template_npc_character_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） → npc_characters.id（書式: NPCCharacter.xxx） |
+| template_npc_character_id | VARCHAR(255) | NOT NULL | XSD属性名は `id`。faction_id との区別のためリネーム。複合PK（2/2） → npc_characters.id（書式: NPCCharacter.xxx） |
 
 PRIMARY KEY: `(faction_id, template_npc_character_id)`
 
@@ -597,9 +589,9 @@ PRIMARY KEY: `(faction_id, template_npc_character_id)`
 | id | INT AUTO_INCREMENT | NOT NULL | PK |
 | kingdom_id | VARCHAR(255) | NOT NULL | FK → kingdoms.id |
 | clan | VARCHAR(255) | NULL | → factions.id（書式: Faction.xxx） |
-| kingdom_ref | VARCHAR(255) | NULL | → kingdoms.id（書式: Kingdom.xxx） |
+| kingdom_ref | VARCHAR(255) | NULL | XSD属性名は `kingdom`。`kingdom_id`（FK）との名前衝突を避けるためリネーム。→ kingdoms.id（書式: Kingdom.xxx） |
 | value | INT | NOT NULL | |
-| is_at_war | BOOLEAN | NULL | |
+| isAtWar | BOOLEAN | NULL | ※XSD属性名はcamelCase |
 
 ---
 
@@ -618,7 +610,7 @@ PRIMARY KEY: `(faction_id, template_npc_character_id)`
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | kingdom_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → kingdoms.id |
-| policy_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+| policy_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） XSD属性名は `id`。XSD上は `use="optional"` だが実データでは常に存在するため NOT NULL とする。
 
 PRIMARY KEY: `(kingdom_id, policy_id)`
 
@@ -632,7 +624,7 @@ PRIMARY KEY: `(kingdom_id, policy_id)`
 |説明|文化圏の基本情報を格納するルートテーブル。外見・ボーナス値・デフォルト装備ロスター等の属性に加え、NPC役職参照属性や子要素テーブルを多数持つ。|
 |テーブル種別|ルートテーブル|
 |親テーブル|無し|
-|子テーブル|`culture_npc_roles`, `culture_caravan_party_templates`, `culture_elite_caravan_party_templates`, `culture_available_ship_hulls`, `culture_vassal_reward_items`, `culture_banner_bearer_replacement_weapons`, `culture_default_policies`, `culture_male_names`, `culture_female_names`, `culture_clan_names`, `culture_cultural_feats`, `culture_possible_clan_banner_icon_ids`, `culture_notable_templates`, `culture_lord_templates`, `culture_rebellion_hero_templates`, `culture_tournament_team_templates_one_participant`, `culture_tournament_team_templates_two_participant`, `culture_tournament_team_templates_four_participant`, `culture_basic_mercenary_troops`|
+|子テーブル|`culture_role_refs`, `culture_caravan_party_templates`, `culture_elite_caravan_party_templates`, `culture_available_ship_hulls`, `culture_vassal_reward_items`, `culture_banner_bearer_replacement_weapons`, `culture_default_policies`, `culture_male_names`, `culture_female_names`, `culture_clan_names`, `culture_cultural_feats`, `culture_possible_clan_banner_icon_ids`, `culture_notable_templates`, `culture_lord_templates`, `culture_rebellion_hero_templates`, `culture_tournament_team_templates_one_participant`, `culture_tournament_team_templates_two_participant`, `culture_tournament_team_templates_four_participant`, `culture_basic_mercenary_troops`|
 |変換元スキーマ要素|`SPCultures > Culture`|
 |変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
@@ -663,27 +655,30 @@ PRIMARY KEY: `(kingdom_id, policy_id)`
 
 ---
 
-#### 3.2.8. `culture_npc_roles`
+#### 3.2.8. `culture_role_refs`
 
 |項目|説明|
 |:--|:--|
-|テーブル名|`culture_npc_roles`|
-|説明|Culture 要素の約60個のNPC役職参照属性（blacksmith, tavernkeeper 等）を縦持ちで正規化したテーブル。role_name に XSD属性名、npc_id に参照先IDを格納する。|
+|テーブル名|`culture_role_refs`|
+|説明|Culture 要素の約60個のロール参照属性を縦持ちで正規化したテーブル。role_name に XSD属性名、ref_id に参照先IDを格納する。ref_id の書式は role_name によって異なり、`NPCCharacter.xxx`（blacksmith, tavernkeeper 等）または `PartyTemplate.xxx`（default_party_template 等）のいずれかとなる。|
 |テーブル種別|子テーブル（1:N）|
 |親テーブル|`cultures`|
 |子テーブル|無し|
-|変換元スキーマ要素|`Culture`（NPC役職参照属性群を縦持ちで正規化）|
+|変換元スキーマ要素|`Culture`（ロール参照属性群を縦持ちで正規化）|
 |変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
 | role_name | VARCHAR(255) | NOT NULL | 複合PK（2/2） 下記 role_name 一覧参照 |
-| npc_id | VARCHAR(255) | NOT NULL | 対応する NPCCharacter の id 値 |
+| ref_id | VARCHAR(255) | NOT NULL | 書式: `NPCCharacter.xxx` または `PartyTemplate.xxx`（role_name により異なる） |
 
 PRIMARY KEY: `(culture_id, role_name)`
 
 **role_name 取りうる値一覧（XSD属性名をそのまま使用）:**
+
+※ `basic_troop`, `elite_basic_troop` のみ XSD で `use="required"`。それ以外はすべて `use="optional"`。
+
 `default_party_template`, `villager_party_template`, `fishing_party_template`,
 `bandit_boss_party_template`, `militia_party_template`, `rebels_party_template`,
 `vassal_reward_party_template`, `settlement_patrol_template_level_1`,
@@ -721,7 +716,7 @@ PRIMARY KEY: `(culture_id, role_name)`
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| template_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+| template_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） XSD属性名は `id` |
 
 PRIMARY KEY: `(culture_id, template_id)`
 
@@ -742,7 +737,7 @@ PRIMARY KEY: `(culture_id, template_id)`
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
 | culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| template_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+| template_id | VARCHAR(255) | NOT NULL | 複合PK（2/2） XSD属性名は `id` |
 
 PRIMARY KEY: `(culture_id, template_id)`
 
