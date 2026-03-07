@@ -1,6 +1,6 @@
 # Mount & Blade II — XMLデータ → MySQL 変換設計書
 
-## 概要
+## 1. 概要
 
 | 項目 | 内容 |
 |---|---|
@@ -11,9 +11,9 @@
 
 ---
 
-## 設計方針
+## 2. 設計方針
 
-### 基本方針
+### 2.1. 基本方針
 
 - `.xsd` のタグ名 → テーブル名
 - `.xsd` の属性名 → カラム名
@@ -21,7 +21,7 @@
 - 入れ子構造（親子タグ）→ 別テーブルに分離し、FOREIGN KEY で結合
 - 正規化を優先（結合より正規化）
 
-### 型マッピング
+### 2.2. 型マッピング
 
 | XSD型 | MySQLカラム型 |
 |---|---|
@@ -32,24 +32,34 @@
 | xs:boolean | BOOLEAN（TINYINT の別名） |
 | enumeration | ENUM(...) |
 
-### 文字セット・照合順序
+### 2.3. 文字セット・照合順序
 
 - `utf8mb4 / utf8mb4_unicode_ci`（多言語対応・推奨）
 
-### 主キー方針
+### 2.4. 主キー方針
 
 - XSD に `id` 属性（ゲーム内ID文字列）が定義されているテーブル → その `id` を PRIMARY KEY とする
-- 参照元テーブルと **1:1** の子テーブル → `npc_character_id` 等の FK カラムをそのまま PK と兼用する（サロゲートキー不要）
+- 参照元テーブルと **1:1** の子テーブル → FK カラムをそのまま PK と兼用する（サロゲートキー不要）
 - 参照元テーブルと **1:N** の子テーブルで、FK と他の自然キーの組み合わせで行を一意に特定できる場合 → それらの複合主キーとする（サロゲートキー不要）
 - 上記いずれにも該当しない子テーブル（NULL許容カラムが候補キーに含まれる場合など）→ `id INT AUTO_INCREMENT` をサロゲートキーとして追加
 
 ---
 
-## テーブル設計
+## 3. テーブル設計
 
-### カテゴリ1: キャラクター関連
+### 3.1. カテゴリ1: キャラクター関連
 
-#### `npc_characters`（メインテーブル / NPCCharacters.xsd > NPCCharacter）
+#### 3.1.1. `npc_characters`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_characters`|
+|説明|ゲーム内に登場するすべてのNPCキャラクターの基本情報を格納するルートテーブル。兵士・コンパニオン・領主など種別を問わず全NPCを収録する。|
+|テーブル種別|ルートテーブル|
+|親テーブル|無し|
+|子テーブル|`npc_character_face`, `npc_character_hair_tags`, `npc_character_beard_tags`, `npc_character_tattoo_tags`, `npc_character_skills`, `npc_character_traits`, `npc_character_feats`, `npc_character_upgrade_targets`, `npc_character_equipment_rosters`, `npc_character_equipment_sets`, `npc_character_hero`, `npc_character_companions`, `npc_character_lords`, `npc_character_resistances`|
+|変換元スキーマ要素|`NPCCharacters > NPCCharacter`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -81,7 +91,19 @@
 | skill_template | VARCHAR(255) | NULL | |
 | upgrade_requires | VARCHAR(255) | NULL | 書式: ItemCategory.xxx |
 
-#### `npc_character_face`（face要素 / npc_characters と 1:1）
+---
+
+#### 3.1.2. `npc_character_face`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_face`|
+|説明|NPCの顔・体型パラメータ（BodyProperties）を格納する。NPCCharacterと1対1で対応する。|
+|テーブル種別|子テーブル（1:1）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`NPCCharacter > face`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -101,7 +123,19 @@
 | face_key_template_value | VARCHAR(255) | NULL | |
 | body_properties_template_value | VARCHAR(255) | NULL | 書式: BodyProperty.xxx |
 
-#### `npc_character_hair_tags`（hair_tag要素 / 1:N）
+---
+
+#### 3.1.3. `npc_character_hair_tags`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_hair_tags`|
+|説明|NPCに適用可能なヘアスタイルのタグ一覧。1NPCに対して複数のタグが対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`face > hair_tags > hair_tag`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -110,7 +144,19 @@
 
 PRIMARY KEY: `(npc_character_id, name)`
 
-#### `npc_character_beard_tags`（beard_tag要素 / 1:N）
+---
+
+#### 3.1.4. `npc_character_beard_tags`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_beard_tags`|
+|説明|NPCに適用可能なひげスタイルのタグ一覧。1NPCに対して複数のタグが対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`face > beard_tags > beard_tag`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -119,7 +165,19 @@ PRIMARY KEY: `(npc_character_id, name)`
 
 PRIMARY KEY: `(npc_character_id, name)`
 
-#### `npc_character_tattoo_tags`（tattoo_tag要素 / 1:N）
+---
+
+#### 3.1.5. `npc_character_tattoo_tags`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_tattoo_tags`|
+|説明|NPCに適用可能なタトゥーのタグ一覧。1NPCに対して複数のタグが対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`face > tattoo_tags > tattoo_tag`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -128,7 +186,19 @@ PRIMARY KEY: `(npc_character_id, name)`
 
 PRIMARY KEY: `(npc_character_id, name)`
 
-#### `npc_character_skills`（skill要素 / 1:N）
+---
+
+#### 3.1.6. `npc_character_skills`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_skills`|
+|説明|NPCが保有するスキルとそのレベル値の一覧。1NPCに対して複数スキルが対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`NPCCharacter > skills > skill`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -138,7 +208,19 @@ PRIMARY KEY: `(npc_character_id, name)`
 
 PRIMARY KEY: `(npc_character_id, skill_id)`
 
-#### `npc_character_traits`（Trait要素 / 1:N）
+---
+
+#### 3.1.7. `npc_character_traits`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_traits`|
+|説明|NPCが保有するトレイト（性格特性）とその値の一覧。1NPCに対して複数トレイトが対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`NPCCharacter > Traits > Trait`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -148,7 +230,19 @@ PRIMARY KEY: `(npc_character_id, skill_id)`
 
 PRIMARY KEY: `(npc_character_id, trait_id)`
 
-#### `npc_character_feats`（feat要素 / 1:N）
+---
+
+#### 3.1.8. `npc_character_feats`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_feats`|
+|説明|NPCが保有する特技（feat）とその値の一覧。1NPCに対して複数featが対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`NPCCharacter > feats > feat`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -158,9 +252,19 @@ PRIMARY KEY: `(npc_character_id, trait_id)`
 
 PRIMARY KEY: `(npc_character_id, feat_id)`
 
-#### `npc_character_upgrade_targets`（upgrade_target要素 / 1:N）
+---
 
-> アップグレード先のNPCキャラクターへの参照。`npc_characters` テーブルへの自己参照関係。
+#### 3.1.9. `npc_character_upgrade_targets`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_upgrade_targets`|
+|説明|兵士NPCのアップグレード先NPC（上位兵種）への参照。npc_characters テーブルへの自己参照関係。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`NPCCharacter > upgrade_targets > upgrade_target`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -169,7 +273,19 @@ PRIMARY KEY: `(npc_character_id, feat_id)`
 
 PRIMARY KEY: `(npc_character_id, target_npc_character_id)`
 
-#### `npc_character_equipment_rosters`（EquipmentRoster要素 / 1:N）
+---
+
+#### 3.1.10. `npc_character_equipment_rosters`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_equipment_rosters`|
+|説明|NPCの装備ロスター（装備セットの集合体）を格納する。1NPCに複数のロスターが存在しうる。civilian フラグで民間用か戦闘用かを区別する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|`npc_character_equipment_items`|
+|変換元スキーマ要素|`NPCCharacter > Equipments > EquipmentRoster`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -177,7 +293,19 @@ PRIMARY KEY: `(npc_character_id, target_npc_character_id)`
 | npc_character_id | VARCHAR(255) | NOT NULL | FK → npc_characters.id |
 | civilian | BOOLEAN | NULL | |
 
-#### `npc_character_equipment_items`（equipment要素 / npc_character_equipment_rosters と 1:N）
+---
+
+#### 3.1.11. `npc_character_equipment_items`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_equipment_items`|
+|説明|装備ロスターに含まれる個々の装備アイテムとスロット情報を格納する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_character_equipment_rosters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`EquipmentRoster > equipment`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -187,7 +315,19 @@ PRIMARY KEY: `(npc_character_id, target_npc_character_id)`
 | item_id | VARCHAR(255) | NULL | |
 | amount | VARCHAR(255) | NULL | |
 
-#### `npc_character_equipment_sets`（EquipmentSet要素 / 1:N）
+---
+
+#### 3.1.12. `npc_character_equipment_sets`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_equipment_sets`|
+|説明|NPCに紐づく装備セット（Battle / Civilian / Stealth）の参照情報を格納する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`NPCCharacter > Equipments > EquipmentSet`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -198,10 +338,19 @@ PRIMARY KEY: `(npc_character_id, target_npc_character_id)`
 
 PRIMARY KEY: `(npc_character_id, set_id)`
 
-#### `npc_character_hero`（Hero子要素 / npc_characters と 1:1）
+---
 
-> NPCCharacters.xsd の `Hero` 子要素を格納。
-> `hero_id` は Heroes.xsd の `heroes` テーブルへの参照であり、2つのXSDをまたぐ連結関係を表す。
+#### 3.1.13. `npc_character_hero`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_hero`|
+|説明|NPCCharacters.xsd の Hero 子要素を格納する。hero_id は Heroes.xsd の heroes テーブルへの参照であり、2つのXSDにまたがる連結関係を表す。|
+|テーブル種別|子テーブル（1:1）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`NPCCharacter > Hero`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -217,10 +366,19 @@ PRIMARY KEY: `(npc_character_id, set_id)`
 | faction | VARCHAR(255) | NULL | 書式: Faction.xxx |
 | clan | VARCHAR(255) | NULL | 書式: Clan.xxx |
 
-#### `npc_character_companions`（Companion要素 / npc_characters と 1:N）
+---
 
-> `Components` 要素内の `Companion` 子要素を格納。
-> `Companion` は `id` 属性のみを持ち、これは `npc_characters.id` への自己参照（コンパニオンとして紐づく別NPCへの参照）。
+#### 3.1.14. `npc_character_companions`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_companions`|
+|説明|Components 要素内の Companion 子要素を格納する。あるNPCがコンパニオンとして紐づく別NPCへの自己参照関係を表す。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Components > Companion`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -229,11 +387,19 @@ PRIMARY KEY: `(npc_character_id, set_id)`
 
 PRIMARY KEY: `(npc_character_id, companion_id)`
 
-#### `npc_character_lords`（Lord要素 / npc_characters と 1:N）
+---
 
-> `Components` 要素内の `Lord` 子要素を格納。
-> `Lord` は `id`（`npc_characters.id` への自己参照）に加え、関係固有の属性（banner_key / spouse 等）を持つ。
-> `Companion` とはカラム構成が異なるため別テーブルとして分離。
+#### 3.1.15. `npc_character_lords`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_lords`|
+|説明|Components 要素内の Lord 子要素を格納する。あるNPCが主君として紐づく別NPCへの自己参照関係と、その関係固有の属性（banner_key / spouse 等）を保持する。Companion とはカラム構成が異なるため別テーブルとして分離。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Components > Lord`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -247,7 +413,19 @@ PRIMARY KEY: `(npc_character_id, companion_id)`
 
 PRIMARY KEY: `(npc_character_id, lord_id)`
 
-#### `npc_character_resistances`（Resistances要素 / npc_characters と 1:1）
+---
+
+#### 3.1.16. `npc_character_resistances`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`npc_character_resistances`|
+|説明|NPCの各種ダメージ耐性値（ノックバック・ノックダウン・落馬）を格納する。NPCCharacterと1対1で対応する。|
+|テーブル種別|子テーブル（1:1）|
+|親テーブル|`npc_characters`|
+|子テーブル|無し|
+|変換元スキーマ要素|`NPCCharacter > Resistances`|
+|変換元スキーマ定義ファイル|`NPCCharacters.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -256,10 +434,19 @@ PRIMARY KEY: `(npc_character_id, lord_id)`
 | knockdown | INT | NULL | |
 | dismount | INT | NULL | |
 
-#### `heroes`（Heroes.xsd > Heroes > Hero）
+---
 
-> Heroes.xsd で定義されるヒーロー（プレイヤーキャラクター・主要NPC）の一覧。
-> `father` / `mother` / `spouse` は同テーブル内の別レコードへの自己参照。
+#### 3.1.17. `heroes`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`heroes`|
+|説明|Heroes.xsd で定義される主要ヒーロー（プレイヤーキャラクター・主要NPC）の一覧。father / mother / spouse は同テーブル内への自己参照。|
+|テーブル種別|ルートテーブル|
+|親テーブル|無し|
+|子テーブル|無し（スコープ内）|
+|変換元スキーマ要素|`Heroes > Hero`|
+|変換元スキーマ定義ファイル|`Heroes.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -276,9 +463,19 @@ PRIMARY KEY: `(npc_character_id, lord_id)`
 
 ---
 
-### カテゴリ2: 勢力・文化関連
+### 3.2. カテゴリ2: 勢力・文化関連
 
-#### `factions`（Factions.xsd > Factions > Faction）
+#### 3.2.1. `factions`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`factions`|
+|説明|氏族・勢力などの派閥情報を格納するルートテーブル。クラン・王国・盗賊団等、種別を問わずすべての派閥を収録する。|
+|テーブル種別|ルートテーブル|
+|親テーブル|無し|
+|子テーブル|`faction_relationships`, `faction_minor_faction_templates`|
+|変換元スキーマ要素|`Factions > Faction`|
+|変換元スキーマ定義ファイル|`Factions.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -306,7 +503,19 @@ PRIMARY KEY: `(npc_character_id, lord_id)`
 | short_name | VARCHAR(255) | NULL | |
 | text | TEXT | NULL | |
 
-#### `faction_relationships`（relationship要素 / factions と 1:1）
+---
+
+#### 3.2.2. `faction_relationships`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`faction_relationships`|
+|説明|派閥の他の派閥（クランまたは王国）との関係値を格納する。factions と1対1で対応する。|
+|テーブル種別|子テーブル（1:1）|
+|親テーブル|`factions`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Faction > relationship`|
+|変換元スキーマ定義ファイル|`Factions.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -315,7 +524,19 @@ PRIMARY KEY: `(npc_character_id, lord_id)`
 | kingdom | VARCHAR(255) | NULL | → kingdoms.id（書式: Kingdom.xxx） |
 | value | INT | NOT NULL | |
 
-#### `faction_minor_faction_templates`（template要素 / 1:N）
+---
+
+#### 3.2.3. `faction_minor_faction_templates`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`faction_minor_faction_templates`|
+|説明|マイナー派閥が使用するNPCテンプレートの一覧。1派閥に複数のテンプレートが対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`factions`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Faction > minor_faction_templates > template`|
+|変換元スキーマ定義ファイル|`Factions.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -324,7 +545,19 @@ PRIMARY KEY: `(npc_character_id, lord_id)`
 
 PRIMARY KEY: `(faction_id, template_npc_character_id)`
 
-#### `kingdoms`（Kingdoms.xsd > Kingdoms > Kingdom）
+---
+
+#### 3.2.4. `kingdoms`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`kingdoms`|
+|説明|王国情報を格納するルートテーブル。factions とは独立したスキーマで定義される上位概念の派閥。|
+|テーブル種別|ルートテーブル|
+|親テーブル|無し|
+|子テーブル|`kingdom_relationships`, `kingdom_policies`|
+|変換元スキーマ要素|`Kingdoms > Kingdom`|
+|変換元スキーマ定義ファイル|`Kingdoms.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -345,7 +578,19 @@ PRIMARY KEY: `(faction_id, template_npc_character_id)`
 | title | VARCHAR(255) | NULL | |
 | ruler_title | VARCHAR(255) | NULL | |
 
-#### `kingdom_relationships`（relationship要素 / kingdoms と 1:N）
+---
+
+#### 3.2.5. `kingdom_relationships`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`kingdom_relationships`|
+|説明|王国の他の派閥（クランまたは王国）との関係値・戦争状態を格納する。1王国に複数の関係レコードが対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`kingdoms`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Kingdom > relationship`|
+|変換元スキーマ定義ファイル|`Kingdoms.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -356,7 +601,19 @@ PRIMARY KEY: `(faction_id, template_npc_character_id)`
 | value | INT | NOT NULL | |
 | is_at_war | BOOLEAN | NULL | |
 
-#### `kingdom_policies`（policy要素 / kingdoms と 1:N）
+---
+
+#### 3.2.6. `kingdom_policies`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`kingdom_policies`|
+|説明|王国が採用している政策の一覧。1王国に複数の政策が対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`kingdoms`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Kingdom > policies > policy`|
+|変換元スキーマ定義ファイル|`Kingdoms.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -365,7 +622,19 @@ PRIMARY KEY: `(faction_id, template_npc_character_id)`
 
 PRIMARY KEY: `(kingdom_id, policy_id)`
 
-#### `cultures`（SPCultures.xsd > SPCultures > Culture）
+---
+
+#### 3.2.7. `cultures`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`cultures`|
+|説明|文化圏の基本情報を格納するルートテーブル。外見・ボーナス値・デフォルト装備ロスター等の属性に加え、NPC役職参照属性や子要素テーブルを多数持つ。|
+|テーブル種別|ルートテーブル|
+|親テーブル|無し|
+|子テーブル|`culture_npc_roles`, `culture_caravan_party_templates`, `culture_elite_caravan_party_templates`, `culture_available_ship_hulls`, `culture_vassal_reward_items`, `culture_banner_bearer_replacement_weapons`, `culture_default_policies`, `culture_male_names`, `culture_female_names`, `culture_clan_names`, `culture_cultural_feats`, `culture_possible_clan_banner_icon_ids`, `culture_notable_templates`, `culture_lord_templates`, `culture_rebellion_hero_templates`, `culture_tournament_team_templates_one_participant`, `culture_tournament_team_templates_two_participant`, `culture_tournament_team_templates_four_participant`, `culture_basic_mercenary_troops`|
+|変換元スキーマ要素|`SPCultures > Culture`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -392,7 +661,19 @@ PRIMARY KEY: `(kingdom_id, policy_id)`
 | start_point_position_x | FLOAT | NULL | |
 | start_point_position_y | FLOAT | NULL | |
 
-#### `culture_npc_roles`（NPC役職参照カラム群を縦持ちで分離 / cultures と 1:N）
+---
+
+#### 3.2.8. `culture_npc_roles`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_npc_roles`|
+|説明|Culture 要素の約60個のNPC役職参照属性（blacksmith, tavernkeeper 等）を縦持ちで正規化したテーブル。role_name に XSD属性名、npc_id に参照先IDを格納する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture`（NPC役職参照属性群を縦持ちで正規化）|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -423,7 +704,19 @@ PRIMARY KEY: `(culture_id, role_name)`
 `weapon_practice_stage_3`, `gear_dummy`, `bandit_bandit`, `bandit_chief`,
 `bandit_raider`, `bandit_boss`
 
-#### `culture_caravan_party_templates`（caravan_party_template要素 / 1:N）
+---
+
+#### 3.2.9. `culture_caravan_party_templates`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_caravan_party_templates`|
+|説明|文化圏が使用するキャラバンのパーティテンプレート一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > caravan_party_templates > caravan_party_template`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -432,7 +725,19 @@ PRIMARY KEY: `(culture_id, role_name)`
 
 PRIMARY KEY: `(culture_id, template_id)`
 
-#### `culture_elite_caravan_party_templates`（elite側 caravan_party_template要素 / 1:N）
+---
+
+#### 3.2.10. `culture_elite_caravan_party_templates`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_elite_caravan_party_templates`|
+|説明|文化圏が使用するエリートキャラバンのパーティテンプレート一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > elite_caravan_party_templates > caravan_party_template`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -441,7 +746,19 @@ PRIMARY KEY: `(culture_id, template_id)`
 
 PRIMARY KEY: `(culture_id, template_id)`
 
-#### `culture_available_ship_hulls`（ship_hull要素 / 1:N）
+---
+
+#### 3.2.11. `culture_available_ship_hulls`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_available_ship_hulls`|
+|説明|文化圏が使用可能な船体（hull）の一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > available_ship_hulls > ship_hull`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -450,7 +767,19 @@ PRIMARY KEY: `(culture_id, template_id)`
 
 PRIMARY KEY: `(culture_id, hull_id)`
 
-#### `culture_vassal_reward_items`（vassal_reward_items > item要素 / 1:N）
+---
+
+#### 3.2.12. `culture_vassal_reward_items`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_vassal_reward_items`|
+|説明|家臣への報酬として授与されるアイテムの一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > vassal_reward_items > item`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -459,7 +788,19 @@ PRIMARY KEY: `(culture_id, hull_id)`
 
 PRIMARY KEY: `(culture_id, item_id)`
 
-#### `culture_banner_bearer_replacement_weapons`（banner_bearer_replacement_weapons > item要素 / 1:N）
+---
+
+#### 3.2.13. `culture_banner_bearer_replacement_weapons`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_banner_bearer_replacement_weapons`|
+|説明|旗手が旗を持つ際に通常武器と置き換えられる武器アイテムの一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > banner_bearer_replacement_weapons > item`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -468,7 +809,19 @@ PRIMARY KEY: `(culture_id, item_id)`
 
 PRIMARY KEY: `(culture_id, item_id)`
 
-#### `culture_default_policies`（policy要素 / 1:N）
+---
+
+#### 3.2.14. `culture_default_policies`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_default_policies`|
+|説明|文化圏のデフォルトで採用される政策の一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > default_policies > policy`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -477,106 +830,19 @@ PRIMARY KEY: `(culture_id, item_id)`
 
 PRIMARY KEY: `(culture_id, policy_id)`
 
-#### `culture_male_names`（name要素 / 1:N）
+---
 
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+#### 3.2.15. `culture_male_names`
 
-PRIMARY KEY: `(culture_id, name)`
-
-#### `culture_female_names`（name要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-
-PRIMARY KEY: `(culture_id, name)`
-
-#### `culture_clan_names`（name要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-
-PRIMARY KEY: `(culture_id, name)`
-
-#### `culture_cultural_feats`（feat要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| id | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-
-PRIMARY KEY: `(culture_id, id)`
-
-#### `culture_possible_clan_banner_icon_ids`（icon要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| id | INT | NOT NULL | 複合PK（2/2） ※XSDでxs:int定義 |
-
-PRIMARY KEY: `(culture_id, id)`
-
-#### `culture_notable_templates`（template要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-
-PRIMARY KEY: `(culture_id, name)`
-
-#### `culture_lord_templates`（template要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-
-PRIMARY KEY: `(culture_id, name)`
-
-#### `culture_rebellion_hero_templates`（template要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-
-PRIMARY KEY: `(culture_id, name)`
-
-#### `culture_tournament_team_templates_one_participant`（template要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-
-PRIMARY KEY: `(culture_id, name)`
-
-#### `culture_tournament_team_templates_two_participant`（template要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-
-PRIMARY KEY: `(culture_id, name)`
-
-#### `culture_tournament_team_templates_four_participant`（template要素 / 1:N）
-
-| カラム名 | 型 | NULL | 備考 |
-|---|---|---|---|
-| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
-| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
-
-PRIMARY KEY: `(culture_id, name)`
-
-#### `culture_basic_mercenary_troops`（template要素 / 1:N）
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_male_names`|
+|説明|文化圏の男性キャラクターに使用される名前の候補一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > male_names > name`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -587,9 +853,250 @@ PRIMARY KEY: `(culture_id, name)`
 
 ---
 
-### カテゴリ3: セリフ・テキスト関連（多言語対応）
+#### 3.2.16. `culture_female_names`
 
-#### `strings`（GameText.xsd > strings > string）
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_female_names`|
+|説明|文化圏の女性キャラクターに使用される名前の候補一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > female_names > name`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, name)`
+
+---
+
+#### 3.2.17. `culture_clan_names`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_clan_names`|
+|説明|文化圏のクランに使用される名前の候補一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > clan_names > name`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, name)`
+
+---
+
+#### 3.2.18. `culture_cultural_feats`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_cultural_feats`|
+|説明|文化圏固有の特技（feat）の一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > cultural_feats > feat`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| id | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, id)`
+
+---
+
+#### 3.2.19. `culture_possible_clan_banner_icon_ids`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_possible_clan_banner_icon_ids`|
+|説明|文化圏のクランが使用可能なバナーアイコンIDの一覧。IDは整数値（xs:int）で定義される。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > possible_clan_banner_icon_ids > icon`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| id | INT | NOT NULL | 複合PK（2/2） ※XSDでxs:int定義 |
+
+PRIMARY KEY: `(culture_id, id)`
+
+---
+
+#### 3.2.20. `culture_notable_templates`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_notable_templates`|
+|説明|文化圏の著名人（notable）として生成されるNPCテンプレートの一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > notable_templates > template`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, name)`
+
+---
+
+#### 3.2.21. `culture_lord_templates`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_lord_templates`|
+|説明|文化圏の領主（lord）として生成されるNPCテンプレートの一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > lord_templates > template`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, name)`
+
+---
+
+#### 3.2.22. `culture_rebellion_hero_templates`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_rebellion_hero_templates`|
+|説明|反乱時に生成されるヒーローNPCのテンプレート一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > rebellion_hero_templates > template`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, name)`
+
+---
+
+#### 3.2.23. `culture_tournament_team_templates_one_participant`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_tournament_team_templates_one_participant`|
+|説明|1人参加トーナメント用チームのNPCテンプレート一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > tournament_team_templates_one_participant > template`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, name)`
+
+---
+
+#### 3.2.24. `culture_tournament_team_templates_two_participant`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_tournament_team_templates_two_participant`|
+|説明|2人参加トーナメント用チームのNPCテンプレート一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > tournament_team_templates_two_participant > template`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, name)`
+
+---
+
+#### 3.2.25. `culture_tournament_team_templates_four_participant`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_tournament_team_templates_four_participant`|
+|説明|4人参加トーナメント用チームのNPCテンプレート一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > tournament_team_templates_four_participant > template`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, name)`
+
+---
+
+#### 3.2.26. `culture_basic_mercenary_troops`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`culture_basic_mercenary_troops`|
+|説明|文化圏の基本傭兵兵種のテンプレート一覧。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`cultures`|
+|子テーブル|無し|
+|変換元スキーマ要素|`Culture > basic_mercenary_troops > template`|
+|変換元スキーマ定義ファイル|`SPCultures.xsd`|
+
+| カラム名 | 型 | NULL | 備考 |
+|---|---|---|---|
+| culture_id | VARCHAR(255) | NOT NULL | 複合PK（1/2） FK → cultures.id |
+| name | VARCHAR(255) | NOT NULL | 複合PK（2/2） |
+
+PRIMARY KEY: `(culture_id, name)`
+
+---
+
+### 3.3. カテゴリ3: セリフ・テキスト関連（多言語対応）
+
+#### 3.3.1. `strings`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`strings`|
+|説明|ゲーム内テキスト（UI文字列・セリフ等）を多言語対応で格納するルートテーブル。language_code はXSD上に存在しない追加カラムで、language_data.xml の LanguageData@id 値を使用する。|
+|テーブル種別|ルートテーブル（多言語拡張）|
+|親テーブル|無し|
+|子テーブル|`string_tags`|
+|変換元スキーマ要素|`strings > string`|
+|変換元スキーマ定義ファイル|`GameText.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -599,7 +1106,19 @@ PRIMARY KEY: `(culture_id, name)`
 
 PRIMARY KEY: `(string_id, language_code)`
 
-#### `string_tags`（tag要素 / strings と 1:N）
+---
+
+#### 3.3.2. `string_tags`
+
+|項目|説明|
+|:--|:--|
+|テーブル名|`string_tags`|
+|説明|テキスト文字列に付与されるタグ情報（名称・重み）を格納する。strings テーブルと1対多で対応する。|
+|テーブル種別|子テーブル（1:N）|
+|親テーブル|`strings`|
+|子テーブル|無し|
+|変換元スキーマ要素|`string > tags > tag`|
+|変換元スキーマ定義ファイル|`GameText.xsd`|
 
 | カラム名 | 型 | NULL | 備考 |
 |---|---|---|---|
@@ -612,20 +1131,18 @@ PRIMARY KEY: `(string_id, language_code, tag_name)`
 
 ---
 
-## テーブル数サマリー
+## 4. テーブル数サマリー
 
 | カテゴリ | テーブル数 |
 |---|---|
-| キャラクター関連 | 16 |
-| 勢力・文化関連 | 23 |
+| キャラクター関連 | 17 |
+| 勢力・文化関連 | 26 |
 | セリフ・テキスト | 2 |
-| **合計** | **41** |
+| **合計** | **45** |
 
 ---
 
-
-
-## データ投入フロー（予定）
+## 5. データ投入フロー（予定）
 
 ```
 Step 1: XSDファイルから CREATE TABLE 文を生成（本設計書に基づく）
