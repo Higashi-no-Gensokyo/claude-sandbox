@@ -11,7 +11,8 @@ Mount & Blade II のゲームデータ（`.xsd` / `.xml`）を MySQL / MariaDB �
 
 ```
 repository root
-├── CLAUDE.md                            ← 本ファイル（Claudeへの指示書）
+├── CLAUDE.md                            ← Claude Code 向け指示書
+├── PROJECT_CONTEXT.md                   ← 本ファイル（チャット版 Claude への指示書）
 ├── xsd/                                 ← ゲーム更新時に差し替えるXSDファイル群
 │   ├── NPCCharacters.xsd
 │   ├── Heroes.xsd
@@ -24,16 +25,16 @@ repository root
 │   ├── mb2_db_design.md                 ← テーブル設計書（成果物）
 │   └── mb2_db_conversion_rules.yaml     ← XSD→RDB変換ルール定義（成果物）
 └── skills/
-    ├── xsd-to-rdb/SKILL.md              ← XSD→RDB変換ナレッジ
-    └── large-file-reading/SKILL.md      ← 大ファイル安全読み込みナレッジ
+    ├── xsd-to-rdb_SKILL.md              ← XSD→RDB変換ナレッジ
+    └── large-file-reading_SKILL.md      ← 大ファイル安全読み込みナレッジ
 ```
 
 ---
 
 ## 作業開始前に必ず読むこと
 
-1. `skills/large-file-reading/SKILL.md` — XSDファイル読み込みの安全手順
-2. `skills/xsd-to-rdb/SKILL.md` — テーブル設計の変換ルール
+1. `skills/large-file-reading_SKILL.md` — XSDファイル読み込みの安全手順
+2. `skills/xsd-to-rdb_SKILL.md` — テーブル設計の変換ルール
 3. `db/mb2_db_conversion_rules.yaml` — 現在の変換ルール定義（差分対照の主軸）
 
 ---
@@ -48,7 +49,8 @@ repository root
 | 1:1 子テーブルの PK | FK カラムを PK と兼用（サロゲートキー不要） |
 | 1:N 子テーブルの PK | 自然キーで一意性が保証できる場合は複合PK、それ以外はサロゲートキー |
 | カラム名 | **XSD属性名をそのまま使用する**（camelCase→snake_case等の変換不可） |
-| 制御文 | `DROP TABLE IF EXISTS`（依存の逆順）＋ `SET FOREIGN_KEY_CHECKS` を先頭に含める |
+| 子テーブルの `id` リネーム | 親FK（例: `npc_character_id`）との区別がつかない場合のみ `{接頭辞}_id` にリネームし、備考にXSD属性名（`id`）を明記する |
+| 制御文 | `DROP TABLE IF EXISTS`（依存の逆順）＋ `SET FOREIGN_KEY_CHECKS=0` を先頭に含める |
 | 正規化方針 | 結合より正規化を優先 |
 
 ---
@@ -70,10 +72,10 @@ repository root
 
 | カテゴリ | XSDファイル | テーブル数 |
 |---|---|---|
-| キャラクター関連 | NPCCharacters.xsd, Heroes.xsd | 15 |
-| 勢力・文化関連 | Factions.xsd, Kingdoms.xsd, SPCultures.xsd | 23 |
+| キャラクター関連 | NPCCharacters.xsd, Heroes.xsd | 17 |
+| 勢力・文化関連 | Factions.xsd, Kingdoms.xsd, SPCultures.xsd | 26 |
 | セリフ・テキスト | GameText.xsd | 2 |
-| **合計** | | **40** |
+| **合計** | | **45** |
 
 除外対象: アニメーション・サウンド・テクスチャ・モーション等の非言語データ
 
@@ -91,7 +93,7 @@ https://github.com/{user}/{repo}/pull/{N}.diff
 ### 作業手順
 1. `web_fetch` で `.diff` URLを取得し、変更内容を把握する
 2. `db/mb2_db_conversion_rules.yaml` と照合し、影響テーブル・カラムを特定する
-3. `skills/xsd-to-rdb/SKILL.md` のチェックリストに従って設計を見直す
+3. `skills/xsd-to-rdb_SKILL.md` のチェックリストに従って設計を見直す
 4. 以下のファイルの該当箇所のみを更新する:
    - `db/mb2_db_conversion_rules.yaml`
    - `db/mb2_db_design.md`
@@ -119,3 +121,5 @@ https://github.com/{user}/{repo}/pull/{N}.diff
 | SPCultures.xsd | 子要素テーブル10件の漏れ | viewツールによる中間行の自動切り捨て |
 | npc_character_equipment_sets | カラム名 `equipment_type` → `equipmentType` | XSD属性名を確認せずsnake_caseに変換した |
 | faction_relationships | 多重度を 1:N → 1:1 に修正 | `<xs:all>` と `<xs:sequence>` の違いを見落とした |
+| culture_role_refs | テーブル名 `culture_npc_roles` → `culture_role_refs`、カラム名 `npc_id` → `ref_id` | 縦持ち化した属性群の参照先を実XMLで確認せず、NPCCharacter参照のみと思い込んだ（実際はPartyTemplateも混在） |
+| kingdom_relationships | カラム名 `is_at_war` → `isAtWar` | XSD属性名（camelCase）を確認せずsnake_caseに変換した |
