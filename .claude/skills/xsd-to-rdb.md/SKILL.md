@@ -130,22 +130,48 @@ XSDに定義されていないが、複数ファイルの統合のために追�
 同一タグの大量属性が「参照先のID」を持ち、属性名が役割名を表す場合。
 
 ```xml
-<!-- XSD: Culture要素に約60個のNPC役職参照属性 -->
+<!-- XSD: Culture要素に約60個のロール参照属性 -->
 <xs:attribute name="blacksmith" type="xs:string"/>
-<xs:attribute name="tavernkeeper" type="xs:string"/>
+<xs:attribute name="default_party_template" type="xs:string"/>
 ...
 ```
 
 このような場合、横持ち（60カラム）より縦持ちテーブルに変換する：
 
 ```sql
-CREATE TABLE culture_npc_roles (
+CREATE TABLE culture_role_refs (
   culture_id VARCHAR(255) NOT NULL,
   role_name  VARCHAR(255) NOT NULL,  -- 属性名をそのまま格納
-  npc_id     VARCHAR(255) NOT NULL,  -- 属性値（参照先ID）
+  ref_id     VARCHAR(255) NOT NULL,  -- 属性値（参照先ID）
   PRIMARY KEY (culture_id, role_name)
 );
 ```
+
+### 縦持ちテーブルの命名と参照先の混在に注意
+
+縦持ち化した属性群の参照先が **複数の種別にまたがる場合**、テーブル名・カラム名にその種別を含めてはならない。
+
+**実例（SPCultures.xsd）:**
+- `blacksmith`, `tavernkeeper` 等 → 参照先は `NPCCharacter.xxx`
+- `default_party_template` 等 → 参照先は `PartyTemplate.xxx`
+
+実データ（XMLファイル）を確認するまで参照先の種別は断定できない。以下のコマンドで確認すること：
+
+```bash
+grep -oE '[a-z_]+="[A-Za-z]+\.[a-zA-Z0-9_]+"' TargetFile.xml | head -20
+```
+
+結果例：
+```
+blacksmith="NPCCharacter.blacksmith_empire"
+default_party_template="PartyTemplate.kingdom_hero_party_empire_template"
+```
+
+参照先が混在する場合：
+- テーブル名は参照先種別を含まない汎用名にする（例: `culture_role_refs`、❌ `culture_npc_roles`）
+- 参照先IDカラム名も汎用名にする（例: `ref_id`、❌ `npc_id`）
+- 備考・COMMENTに「`NPCCharacter.xxx` または `PartyTemplate.xxx`（role_nameにより異なる）」と明記する
+- FKは設定しない（参照先テーブルが一意に定まらないため）
 
 ---
 
@@ -174,3 +200,5 @@ CREATE TABLE culture_npc_roles (
 - [ ] コメントアウトされた属性を誤って含めていないことを確認した
 - [ ] XSD由来でない追加カラムを設計書に明記した
 - [ ] 複合PKの構成カラムにNULL許容カラムが含まれないことを確認した
+- [ ] 縦持ち変換したテーブルの参照先種別を実XMLデータで確認した
+- [ ] 参照先が混在する縦持ちテーブルのテーブル名・カラム名が特定種別を示す名前になっていないことを確認した
