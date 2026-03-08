@@ -1,0 +1,497 @@
+# Mount & Blade II — XSD→MySQL 変換ルール定義
+# 用途: このファイルをインプットとして読むことで、XSDファイルの変更時に
+#       設計変更箇所と生成すべきDDLを正確に把握できる。
+#
+# 凡例:
+#   pk: true          → PRIMARY KEY
+#   pk_order: N       → 複合PKの順序（1始まり）
+#   fk: table.column  → FOREIGN KEY 参照先
+#   pk_and_fk: true   → PK兼FKの1:1テーブル
+#   nullable: false   → NOT NULL
+#   nullable: true    → NULL許容
+#   xsd_use: required → XSDで use="required"
+#   xsd_use: optional → XSDで use="optional"
+
+meta:
+  charset: utf8mb4
+  collation: utf8mb4_unicode_ci
+  boolean_type: BOOLEAN       # TINYINT(1)の別名
+  boolean_nullable: true      # XMLで省略された属性とfalseの区別を保持するためNULL許容
+  idempotent_ddl: true        # DROP TABLE IF EXISTS + SET FOREIGN_KEY_CHECKS を先頭に出力
+
+type_mapping:
+  xs:string:    VARCHAR(255)  # text属性など長文が想定される場合はTEXT
+  xs:int:       INT
+  xs:decimal:   DECIMAL(10,2)
+  xs:float:     FLOAT
+  xs:boolean:   BOOLEAN
+  enumeration:  ENUM(...)     # XSDのenumeration値をそのまま列挙
+
+# =============================================================================
+# カテゴリ1: キャラクター関連
+# =============================================================================
+
+tables:
+
+  # ---------------------------------------------------------------------------
+  - name: npc_characters
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter
+    relationship: root
+    columns:
+      - { name: id,                             xsd_attr: id,                             type: VARCHAR(255), nullable: false, pk: true,  xsd_use: optional }
+      - { name: default_group,                  xsd_attr: default_group,                  type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: voice,                          xsd_attr: voice,                          type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: is_hero,                        xsd_attr: is_hero,                        type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: is_female,                      xsd_attr: is_female,                      type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: race,                           xsd_attr: race,                           type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: is_basic_troop,                 xsd_attr: is_basic_troop,                 type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: is_template,                    xsd_attr: is_template,                    type: BOOLEAN,      nullable: true,             xsd_use: optional }
+      - { name: is_child_template,              xsd_attr: is_child_template,              type: BOOLEAN,      nullable: true,             xsd_use: optional }
+      - { name: is_hidden_encyclopedia,         xsd_attr: is_hidden_encyclopedia,         type: BOOLEAN,      nullable: true,             xsd_use: optional }
+      - { name: face_mesh_cache,                xsd_attr: face_mesh_cache,                type: BOOLEAN,      nullable: true,             xsd_use: optional }
+      - { name: is_obsolete,                    xsd_attr: is_obsolete,                    type: BOOLEAN,      nullable: true,             xsd_use: optional }
+      - { name: culture,                        xsd_attr: culture,                        type: VARCHAR(255), nullable: false,            xsd_use: required, note: "書式: Culture.xxx" }
+      - { name: name,                           xsd_attr: name,                           type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: banner_symbol_mesh_name,        xsd_attr: banner_symbol_mesh_name,        type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: banner_symbol_color,            xsd_attr: banner_symbol_color,            type: VARCHAR(255), nullable: true,             xsd_use: optional, note: "書式: 0xRRGGBBAA" }
+      - { name: banner_key,                     xsd_attr: banner_key,                     type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: occupation,                     xsd_attr: occupation,                     type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: is_companion,                   xsd_attr: is_companion,                   type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: offset,                         xsd_attr: offset,                         type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: level,                          xsd_attr: level,                          type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: age,                            xsd_attr: age,                            type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: is_mercenary,                   xsd_attr: is_mercenary,                   type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: formation_position_preference,  xsd_attr: formation_position_preference,  type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: default_equipment_set,          xsd_attr: default_equipment_set,          type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: skill_template,                 xsd_attr: skill_template,                 type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: upgrade_requires,               xsd_attr: upgrade_requires,               type: VARCHAR(255), nullable: true,             xsd_use: optional, note: "書式: ItemCategory.xxx" }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_face
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/face
+    relationship: "1:1"
+    parent: npc_characters
+    columns:
+      - { name: npc_character_id,               type: VARCHAR(255), nullable: false, pk_and_fk: true, fk: npc_characters.id }
+      - { name: face_key_value,                  xsd_attr: "face/face_key@value",              type: VARCHAR(255), nullable: true }
+      - { name: face_key_max_value,              xsd_attr: "face/face_key@max_value",           type: VARCHAR(255), nullable: true }
+      - { name: body_properties_version,         xsd_attr: "face/BodyProperties@version",       type: VARCHAR(255), nullable: true }
+      - { name: body_properties_age,             xsd_attr: "face/BodyProperties@age",           type: VARCHAR(255), nullable: true }
+      - { name: body_properties_weight,          xsd_attr: "face/BodyProperties@weight",        type: VARCHAR(255), nullable: true }
+      - { name: body_properties_build,           xsd_attr: "face/BodyProperties@build",         type: VARCHAR(255), nullable: true }
+      - { name: body_properties_key,             xsd_attr: "face/BodyProperties@key",           type: VARCHAR(255), nullable: true }
+      - { name: body_properties_max_version,     xsd_attr: "face/BodyPropertiesMax@version",    type: VARCHAR(255), nullable: true }
+      - { name: body_properties_max_age,         xsd_attr: "face/BodyPropertiesMax@age",        type: VARCHAR(255), nullable: true }
+      - { name: body_properties_max_weight,      xsd_attr: "face/BodyPropertiesMax@weight",     type: VARCHAR(255), nullable: true }
+      - { name: body_properties_max_build,       xsd_attr: "face/BodyPropertiesMax@build",      type: VARCHAR(255), nullable: true }
+      - { name: body_properties_max_key,         xsd_attr: "face/BodyPropertiesMax@key",        type: VARCHAR(255), nullable: true }
+      - { name: face_key_template_value,         xsd_attr: "face/face_key_template@value",      type: VARCHAR(255), nullable: true }
+      - { name: body_properties_template_value,  xsd_attr: "face/BodyPropertiesTemplate@value", type: VARCHAR(255), nullable: true, note: "書式: BodyProperty.xxx" }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_hair_tags
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/face/hair_tags/hair_tag
+    relationship: "1:N"
+    parent: npc_characters
+    primary_key: [npc_character_id, name]
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: name,             xsd_attr: name,     type: VARCHAR(255), nullable: false, pk_order: 2 }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_beard_tags
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/face/beard_tags/beard_tag
+    relationship: "1:N"
+    parent: npc_characters
+    primary_key: [npc_character_id, name]
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: name,             xsd_attr: name,     type: VARCHAR(255), nullable: false, pk_order: 2 }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_tattoo_tags
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/face/tattoo_tags/tattoo_tag
+    relationship: "1:N"
+    parent: npc_characters
+    primary_key: [npc_character_id, name]
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: name,             xsd_attr: name,     type: VARCHAR(255), nullable: false, pk_order: 2 }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_skills
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/skills/skill
+    relationship: "1:N"
+    parent: npc_characters
+    primary_key: [npc_character_id, skill_id]
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: skill_id,         xsd_attr: id,       type: VARCHAR(255), nullable: false, pk_order: 2 }
+      - { name: value,            xsd_attr: value,    type: INT,          nullable: false }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_traits
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/Traits/Trait
+    relationship: "1:N"
+    parent: npc_characters
+    primary_key: [npc_character_id, trait_id]
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: trait_id,         xsd_attr: id,       type: VARCHAR(255), nullable: false, pk_order: 2 }
+      - { name: value,            xsd_attr: value,    type: INT,          nullable: false }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_feats
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/feats/feat
+    relationship: "1:N"
+    parent: npc_characters
+    primary_key: [npc_character_id, feat_id]
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: feat_id,          xsd_attr: id,       type: VARCHAR(255), nullable: false, pk_order: 2 }
+      - { name: value,            xsd_attr: value,    type: INT,          nullable: false }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_upgrade_targets
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/upgrade_targets/upgrade_target
+    relationship: "1:N"
+    parent: npc_characters
+    primary_key: [npc_character_id, target_npc_character_id]
+    columns:
+      - { name: npc_character_id,         type: VARCHAR(255), nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: target_npc_character_id,  xsd_attr: id,       type: VARCHAR(255), nullable: false, pk_order: 2, fk: npc_characters.id, note: "自己参照 / 書式: NPCCharacter.xxx" }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_equipment_rosters
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/Equipments/EquipmentRoster
+    relationship: "1:N"
+    parent: npc_characters
+    surrogate_key: true   # 自然キーで一意性を保証できないためサロゲートキーを使用
+    columns:
+      - { name: id,               type: INT AUTO_INCREMENT, nullable: false, pk: true }
+      - { name: npc_character_id, type: VARCHAR(255),       nullable: false, fk: npc_characters.id }
+      - { name: civilian,         xsd_attr: civilian,       type: BOOLEAN,   nullable: true }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_equipment_items
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/Equipments/EquipmentRoster/equipment
+    relationship: "1:N"
+    parent: npc_character_equipment_rosters
+    surrogate_key: true
+    columns:
+      - { name: id,                  type: INT AUTO_INCREMENT, nullable: false, pk: true }
+      - { name: equipment_roster_id, type: INT,                nullable: false, fk: npc_character_equipment_rosters.id }
+      - { name: slot,                xsd_attr: slot,           type: VARCHAR(255), nullable: true }
+      - { name: item_id,             xsd_attr: id,             type: VARCHAR(255), nullable: true }
+      - { name: amount,              xsd_attr: amount,         type: VARCHAR(255), nullable: true }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_equipment_sets
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/Equipments/EquipmentSet
+    relationship: "1:N"
+    parent: npc_characters
+    primary_key: [npc_character_id, set_id]
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255),                   nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: set_id,           xsd_attr: id,                         type: VARCHAR(255),           nullable: false, pk_order: 2 }
+      - { name: civilian,         xsd_attr: civilian,                   type: BOOLEAN,                nullable: true }
+      - { name: equipmentType,    xsd_attr: equipmentType,              type: "ENUM('Battle','Civilian','Stealth')", nullable: true, note: "XSD属性名はcamelCase" }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_hero
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/Hero
+    relationship: "1:1"
+    parent: npc_characters
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_and_fk: true, fk: npc_characters.id }
+      - { name: hero_id,          xsd_attr: id,       type: VARCHAR(255), nullable: false, fk: heroes.id, note: "Heroes.xsdとの連結" }
+      - { name: banner_key,       xsd_attr: banner_key, type: VARCHAR(255), nullable: true }
+      - { name: text,             xsd_attr: text,     type: TEXT,         nullable: true }
+      - { name: spouse,           xsd_attr: spouse,   type: VARCHAR(255), nullable: true }
+      - { name: alive,            xsd_attr: alive,    type: VARCHAR(255), nullable: true }
+      - { name: voice,            xsd_attr: voice,    type: VARCHAR(255), nullable: true }
+      - { name: father,           xsd_attr: father,   type: VARCHAR(255), nullable: true }
+      - { name: mother,           xsd_attr: mother,   type: VARCHAR(255), nullable: true }
+      - { name: faction,          xsd_attr: faction,  type: VARCHAR(255), nullable: true, note: "書式: Faction.xxx" }
+      - { name: clan,             xsd_attr: clan,     type: VARCHAR(255), nullable: true, note: "書式: Clan.xxx" }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_companions
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/Components/Companion
+    relationship: "1:N"
+    parent: npc_characters
+    note: >
+      Companion要素はid属性のみを持ち、npc_characters.idへの自己参照。
+      xs:choiceによりLordとは別テーブルとして分離。
+    primary_key: [npc_character_id, companion_id]
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: companion_id,     xsd_attr: id,       type: VARCHAR(255), nullable: false, pk_order: 2, fk: npc_characters.id, note: "自己参照" }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_lords
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/Components/Lord
+    relationship: "1:N"
+    parent: npc_characters
+    note: >
+      Lord要素はid属性に加え関係固有の属性を持つ。
+      xs:choiceによりCompanionとは別テーブルとして分離。
+    primary_key: [npc_character_id, lord_id]
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: npc_characters.id }
+      - { name: lord_id,          xsd_attr: id,       type: VARCHAR(255), nullable: false, pk_order: 2, fk: npc_characters.id, note: "自己参照" }
+      - { name: banner_key,       xsd_attr: banner_key, type: VARCHAR(255), nullable: true }
+      - { name: spouse,           xsd_attr: spouse,     type: VARCHAR(255), nullable: true }
+      - { name: voice,            xsd_attr: voice,      type: VARCHAR(255), nullable: true }
+      - { name: father,           xsd_attr: father,     type: VARCHAR(255), nullable: true }
+      - { name: mother,           xsd_attr: mother,     type: VARCHAR(255), nullable: true }
+
+  # ---------------------------------------------------------------------------
+  - name: npc_character_resistances
+    source_xsd: NPCCharacters.xsd
+    source_path: NPCCharacters/NPCCharacter/Resistances
+    relationship: "1:1"
+    parent: npc_characters
+    columns:
+      - { name: npc_character_id, type: VARCHAR(255), nullable: false, pk_and_fk: true, fk: npc_characters.id }
+      - { name: knockback,        xsd_attr: knockback, type: INT,     nullable: true }
+      - { name: knockdown,        xsd_attr: knockdown, type: INT,     nullable: true }
+      - { name: dismount,         xsd_attr: dismount,  type: INT,     nullable: true }
+
+  # ---------------------------------------------------------------------------
+  - name: heroes
+    source_xsd: Heroes.xsd
+    source_path: Heroes/Hero
+    relationship: root
+    columns:
+      - { name: id,                            xsd_attr: id,                            type: VARCHAR(255), nullable: false, pk: true,  xsd_use: required }
+      - { name: father,                        xsd_attr: father,                        type: VARCHAR(255), nullable: true,             xsd_use: optional, fk: heroes.id, note: "自己参照" }
+      - { name: mother,                        xsd_attr: mother,                        type: VARCHAR(255), nullable: true,             xsd_use: optional, fk: heroes.id, note: "自己参照" }
+      - { name: faction,                       xsd_attr: faction,                       type: VARCHAR(255), nullable: false,            xsd_use: required, fk: factions.id }
+      - { name: banner_key,                    xsd_attr: banner_key,                    type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: spouse,                        xsd_attr: spouse,                        type: VARCHAR(255), nullable: true,             xsd_use: optional, fk: heroes.id, note: "自己参照" }
+      - { name: alive,                         xsd_attr: alive,                         type: BOOLEAN,      nullable: true,             xsd_use: optional }
+      - { name: text,                          xsd_attr: text,                          type: TEXT,         nullable: true,             xsd_use: optional }
+      - { name: preferred_upgrade_formation,   xsd_attr: preferred_upgrade_formation,   type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: banner_item,                   xsd_attr: banner_item,                   type: VARCHAR(255), nullable: true,             xsd_use: optional }
+
+# =============================================================================
+# カテゴリ2: 勢力・文化関連
+# =============================================================================
+
+  # ---------------------------------------------------------------------------
+  - name: factions
+    source_xsd: Factions.xsd
+    source_path: Factions/Faction
+    relationship: root
+    columns:
+      - { name: id,                       xsd_attr: id,                       type: VARCHAR(255),  nullable: false, pk: true,  xsd_use: required }
+      - { name: initial_home_settlement,  xsd_attr: initial_home_settlement,  type: VARCHAR(255),  nullable: false,            xsd_use: required, note: "書式: Settlement.xxx" }
+      - { name: banner_key,               xsd_attr: banner_key,               type: VARCHAR(255),  nullable: true,             xsd_use: optional }
+      - { name: tier,                     xsd_attr: tier,                     type: DECIMAL(10,2), nullable: false,            xsd_use: required }
+      - { name: owner,                    xsd_attr: owner,                    type: VARCHAR(255),  nullable: true,             xsd_use: optional, fk: heroes.id, note: "書式: Hero.xxx" }
+      - { name: color,                    xsd_attr: color,                    type: VARCHAR(255),  nullable: true,             xsd_use: optional, note: "書式: 0xRRGGBBAA" }
+      - { name: color2,                   xsd_attr: color2,                   type: VARCHAR(255),  nullable: true,             xsd_use: optional, note: "書式: 0xRRGGBBAA" }
+      - { name: culture,                  xsd_attr: culture,                  type: VARCHAR(255),  nullable: true,             xsd_use: optional, fk: cultures.id, note: "書式: Culture.xxx" }
+      - { name: super_faction,            xsd_attr: super_faction,            type: VARCHAR(255),  nullable: true,             xsd_use: optional, fk: kingdoms.id, note: "書式: Kingdom.xxx" }
+      - { name: default_party_template,   xsd_attr: default_party_template,   type: VARCHAR(255),  nullable: true,             xsd_use: optional, note: "書式: PartyTemplate.xxx" }
+      - { name: is_bandit,                xsd_attr: is_bandit,                type: BOOLEAN,       nullable: true,             xsd_use: optional }
+      - { name: is_noble,                 xsd_attr: is_noble,                 type: BOOLEAN,       nullable: true,             xsd_use: optional }
+      - { name: is_minor_faction,         xsd_attr: is_minor_faction,         type: BOOLEAN,       nullable: true,             xsd_use: optional }
+      - { name: is_outlaw,                xsd_attr: is_outlaw,                type: BOOLEAN,       nullable: true,             xsd_use: optional }
+      - { name: is_clan_type_mercenary,   xsd_attr: is_clan_type_mercenary,   type: BOOLEAN,       nullable: true,             xsd_use: optional }
+      - { name: is_nomad,                 xsd_attr: is_nomad,                 type: BOOLEAN,       nullable: true,             xsd_use: optional }
+      - { name: is_sect,                  xsd_attr: is_sect,                  type: BOOLEAN,       nullable: true,             xsd_use: optional }
+      - { name: is_mafia,                 xsd_attr: is_mafia,                 type: BOOLEAN,       nullable: true,             xsd_use: optional }
+      - { name: settlement_banner_mesh,   xsd_attr: settlement_banner_mesh,   type: VARCHAR(255),  nullable: true,             xsd_use: optional }
+      - { name: flag_mesh,                xsd_attr: flag_mesh,                type: VARCHAR(255),  nullable: true,             xsd_use: optional }
+      - { name: name,                     xsd_attr: name,                     type: VARCHAR(255),  nullable: false,            xsd_use: required }
+      - { name: short_name,               xsd_attr: short_name,               type: VARCHAR(255),  nullable: true,             xsd_use: optional }
+      - { name: text,                     xsd_attr: text,                     type: TEXT,          nullable: true,             xsd_use: optional }
+
+  # ---------------------------------------------------------------------------
+  - name: faction_relationships
+    source_xsd: Factions.xsd
+    source_path: Factions/Faction/relationship
+    relationship: "1:1"   # <xs:all>内に定義、maxOccurs未指定（=1）
+    parent: factions
+    columns:
+      - { name: faction_id, type: VARCHAR(255), nullable: false, pk_and_fk: true, fk: factions.id }
+      - { name: clan,       xsd_attr: clan,     type: VARCHAR(255), nullable: true, note: "書式: Faction.xxx" }
+      - { name: kingdom,    xsd_attr: kingdom,  type: VARCHAR(255), nullable: true, note: "書式: Kingdom.xxx" }
+      - { name: value,      xsd_attr: value,    type: INT,          nullable: false }
+
+  # ---------------------------------------------------------------------------
+  - name: faction_minor_faction_templates
+    source_xsd: Factions.xsd
+    source_path: Factions/Faction/minor_faction_character_templates/template
+    relationship: "1:N"
+    parent: factions
+    primary_key: [faction_id, template_npc_character_id]
+    columns:
+      - { name: faction_id,                   type: VARCHAR(255), nullable: false, pk_order: 1, fk: factions.id }
+      - { name: template_npc_character_id,    xsd_attr: id,       type: VARCHAR(255), nullable: false, pk_order: 2, note: "書式: NPCCharacter.xxx" }
+
+  # ---------------------------------------------------------------------------
+  - name: kingdoms
+    source_xsd: Kingdoms.xsd
+    source_path: Kingdoms/Kingdom
+    relationship: root
+    columns:
+      - { name: id,                       xsd_attr: id,                       type: VARCHAR(255), nullable: false, pk: true,  xsd_use: required }
+      - { name: initial_home_settlement,  xsd_attr: initial_home_settlement,  type: VARCHAR(255), nullable: false,            xsd_use: required, note: "書式: Settlement.xxx" }
+      - { name: banner_key,               xsd_attr: banner_key,               type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: owner,                    xsd_attr: owner,                    type: VARCHAR(255), nullable: true,             xsd_use: optional, fk: heroes.id, note: "書式: Hero.xxx" }
+      - { name: primary_banner_color,     xsd_attr: primary_banner_color,     type: VARCHAR(255), nullable: false,            xsd_use: required, note: "書式: 0xRRGGBBAA" }
+      - { name: secondary_banner_color,   xsd_attr: secondary_banner_color,   type: VARCHAR(255), nullable: false,            xsd_use: required, note: "書式: 0xRRGGBBAA" }
+      - { name: color,                    xsd_attr: color,                    type: VARCHAR(255), nullable: true,             xsd_use: optional, note: "書式: 0xRRGGBBAA" }
+      - { name: color2,                   xsd_attr: color2,                   type: VARCHAR(255), nullable: true,             xsd_use: optional, note: "書式: 0xRRGGBBAA" }
+      - { name: culture,                  xsd_attr: culture,                  type: VARCHAR(255), nullable: false,            xsd_use: required, fk: cultures.id, note: "書式: Culture.xxx" }
+      - { name: settlement_banner_mesh,   xsd_attr: settlement_banner_mesh,   type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: flag_mesh,                xsd_attr: flag_mesh,                type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: name,                     xsd_attr: name,                     type: VARCHAR(255), nullable: false,            xsd_use: required }
+      - { name: short_name,               xsd_attr: short_name,               type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: text,                     xsd_attr: text,                     type: TEXT,         nullable: true,             xsd_use: optional }
+      - { name: title,                    xsd_attr: title,                    type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: ruler_title,              xsd_attr: ruler_title,              type: VARCHAR(255), nullable: true,             xsd_use: optional }
+
+  # ---------------------------------------------------------------------------
+  - name: kingdom_relationships
+    source_xsd: Kingdoms.xsd
+    source_path: Kingdoms/Kingdom/relationships/relationship
+    relationship: "1:N"   # <xs:sequence>内でmaxOccurs="unbounded"
+    parent: kingdoms
+    surrogate_key: true   # clan/kingdomがともにNULL許容のため複合PKに使用不可
+    columns:
+      - { name: id,          type: INT AUTO_INCREMENT, nullable: false, pk: true }
+      - { name: kingdom_id,  type: VARCHAR(255),       nullable: false, fk: kingdoms.id }
+      - { name: clan,        xsd_attr: clan,           type: VARCHAR(255), nullable: true, note: "書式: Faction.xxx" }
+      - { name: kingdom_ref, xsd_attr: kingdom,   type: VARCHAR(255), nullable: true, note: "XSD属性名はkingdom。kingdom_id(FK)との衝突回避のためリネーム。書式: Kingdom.xxx" }
+      - { name: value,       xsd_attr: value,      type: INT,          nullable: false }
+      - { name: isAtWar,     xsd_attr: isAtWar,    type: BOOLEAN,      nullable: true }
+
+  # ---------------------------------------------------------------------------
+  - name: kingdom_policies
+    source_xsd: Kingdoms.xsd
+    source_path: Kingdoms/Kingdom/policies/policy
+    relationship: "1:N"
+    parent: kingdoms
+    primary_key: [kingdom_id, policy_id]
+    columns:
+      - { name: kingdom_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: kingdoms.id }
+      - { name: policy_id,  xsd_attr: id,       type: VARCHAR(255), nullable: false, pk_order: 2 }
+
+  # ---------------------------------------------------------------------------
+  - name: cultures
+    source_xsd: SPCultures.xsd
+    source_path: SPCultures/Culture
+    relationship: root
+    columns:
+      - { name: id,                                       xsd_attr: id,                                       type: VARCHAR(255), nullable: false, pk: true,  xsd_use: required }
+      - { name: name,                                     xsd_attr: name,                                     type: VARCHAR(255), nullable: false,            xsd_use: required }
+      - { name: color,                                    xsd_attr: color,                                    type: VARCHAR(255), nullable: true,             xsd_use: optional, note: "書式: 0xRRGGBBAA" }
+      - { name: color2,                                   xsd_attr: color2,                                   type: VARCHAR(255), nullable: true,             xsd_use: optional, note: "書式: 0xRRGGBBAA" }
+      - { name: is_main_culture,                          xsd_attr: is_main_culture,                          type: BOOLEAN,      nullable: true,             xsd_use: optional }
+      - { name: is_bandit,                                xsd_attr: is_bandit,                                type: BOOLEAN,      nullable: true,             xsd_use: optional }
+      - { name: naval_factor,                             xsd_attr: naval_factor,                             type: FLOAT,        nullable: true,             xsd_use: optional }
+      - { name: can_have_settlement,                      xsd_attr: can_have_settlement,                      type: BOOLEAN,      nullable: true,             xsd_use: optional }
+      - { name: militia_bonus,                            xsd_attr: militia_bonus,                            type: INT,          nullable: true,             xsd_use: optional }
+      - { name: prosperity_bonus,                         xsd_attr: prosperity_bonus,                         type: INT,          nullable: true,             xsd_use: optional }
+      - { name: encounter_background_mesh,                xsd_attr: encounter_background_mesh,                type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: faction_banner_key,                       xsd_attr: faction_banner_key,                       type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: basic_troop,                              xsd_attr: basic_troop,                              type: VARCHAR(255), nullable: false,            xsd_use: required }
+      - { name: elite_basic_troop,                        xsd_attr: elite_basic_troop,                        type: VARCHAR(255), nullable: false,            xsd_use: required }
+      - { name: board_game_type,                          xsd_attr: board_game_type,                          type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: default_battle_equipment_roster,          xsd_attr: default_battle_equipment_roster,          type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: default_civilian_equipment_roster,        xsd_attr: default_civilian_equipment_roster,        type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: default_stealth_equipment_roster,         xsd_attr: default_stealth_equipment_roster,         type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: duel_preset_equipment_roster,             xsd_attr: duel_preset_equipment_roster,             type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: marriage_bride_equipment_roster,          xsd_attr: marriage_bride_equipment_roster,          type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: text,                                     xsd_attr: text,                                     type: TEXT,         nullable: true,             xsd_use: optional }
+      - { name: default_character_creation_body_property, xsd_attr: default_character_creation_body_property, type: VARCHAR(255), nullable: true,             xsd_use: optional }
+      - { name: start_point_position_x,                  xsd_attr: start_point_position_x,                   type: FLOAT,        nullable: true,             xsd_use: optional }
+      - { name: start_point_position_y,                  xsd_attr: start_point_position_y,                   type: FLOAT,        nullable: true,             xsd_use: optional }
+
+  # ---------------------------------------------------------------------------
+  - name: culture_role_refs
+    source_xsd: SPCultures.xsd
+    source_path: "SPCultures/Culture@[role_attrs]"
+    relationship: "1:N"
+    parent: cultures
+    primary_key: [culture_id, role_name]
+    note: >
+      XSD上は約60個の独立属性だが正規化のため縦持ち化。
+      role_nameはXSD属性名をそのまま使用。
+      ref_idの書式はrole_nameにより異なり、NPCCharacter.xxx（blacksmith等）
+      またはPartyTemplate.xxx（default_party_template等）のいずれかとなる。
+    columns:
+      - { name: culture_id,  type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id }
+      - { name: role_name,   type: VARCHAR(255), nullable: false, pk_order: 2 }
+      - { name: ref_id,      type: VARCHAR(255), nullable: false, note: "書式: NPCCharacter.xxx または PartyTemplate.xxx（role_nameにより異なる）" }
+
+  # 以下、cultures の子要素テーブル（共通パターン: 複合PK = culture_id + 値カラム）
+  - { name: culture_caravan_party_templates,                source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/caravan_party_templates/caravan_party_template",               relationship: "1:N", parent: cultures, primary_key: [culture_id, template_id], columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: template_id, xsd_attr: id, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_elite_caravan_party_templates,          source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/elite_caravan_party_templates/caravan_party_template",         relationship: "1:N", parent: cultures, primary_key: [culture_id, template_id], columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: template_id, xsd_attr: id, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_available_ship_hulls,                   source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/available_ship_hulls/ship_hull",                               relationship: "1:N", parent: cultures, primary_key: [culture_id, hull_id],     columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: hull_id,     xsd_attr: id, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_vassal_reward_items,                    source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/vassal_reward_items/item",                                     relationship: "1:N", parent: cultures, primary_key: [culture_id, item_id],     columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: item_id,     xsd_attr: id, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_banner_bearer_replacement_weapons,      source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/banner_bearer_replacement_weapons/item",                       relationship: "1:N", parent: cultures, primary_key: [culture_id, item_id],     columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: item_id,     xsd_attr: id, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_default_policies,                       source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/default_policies/policy",                                      relationship: "1:N", parent: cultures, primary_key: [culture_id, policy_id],   columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: policy_id,   xsd_attr: id, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_male_names,                             source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/male_names/name",                                              relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_female_names,                           source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/female_names/name",                                            relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_clan_names,                             source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/clan_names/name",                                              relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_cultural_feats,                         source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/cultural_feats/feat",                                          relationship: "1:N", parent: cultures, primary_key: [culture_id, id],          columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: id,          xsd_attr: id, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_possible_clan_banner_icon_ids,          source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/possible_clan_banner_icon_ids/icon",                           relationship: "1:N", parent: cultures, primary_key: [culture_id, id],          columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: id,          xsd_attr: id, type: INT,          nullable: false, pk_order: 2, note: "XSDでxs:int定義"}] }
+  - { name: culture_notable_templates,                      source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/notable_templates/template",                                   relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_lord_templates,                         source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/lord_templates/template",                                      relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_rebellion_hero_templates,               source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/rebellion_hero_templates/template",                            relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_tournament_team_templates_one_participant,  source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/tournament_team_templates_one_participant/template",   relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_tournament_team_templates_two_participant,  source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/tournament_team_templates_two_participant/template",   relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_tournament_team_templates_four_participant, source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/tournament_team_templates_four_participant/template",  relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+  - { name: culture_basic_mercenary_troops,                 source_xsd: SPCultures.xsd, source_path: "SPCultures/Culture/basic_mercenary_troops/template",                             relationship: "1:N", parent: cultures, primary_key: [culture_id, name],        columns: [{name: culture_id, type: VARCHAR(255), nullable: false, pk_order: 1, fk: cultures.id}, {name: name,        xsd_attr: name, type: VARCHAR(255), nullable: false, pk_order: 2}] }
+
+# =============================================================================
+# カテゴリ3: セリフ・テキスト関連（多言語対応）
+# =============================================================================
+
+  # ---------------------------------------------------------------------------
+  - name: strings
+    source_xsd: GameText.xsd
+    source_path: strings/string
+    relationship: root
+    note: >
+      language_codeはXSD上に存在しない追加カラム。
+      language_data.xmlの<LanguageData id="...">の値を設定する。
+      英語版(オリジナル)はlanguage_codeに固定値"English"を使用する。
+    primary_key: [string_id, language_code]
+    columns:
+      - { name: string_id,      xsd_attr: id,   type: VARCHAR(255), nullable: false, pk_order: 1 }
+      - { name: language_code,  type: VARCHAR(255), nullable: false, pk_order: 2, note: "language_data.xmlのLanguageData@id値" }
+      - { name: text,           xsd_attr: text, type: TEXT,         nullable: false }
+
+  # ---------------------------------------------------------------------------
+  - name: string_tags
+    source_xsd: GameText.xsd
+    source_path: strings/string/tags/tag
+    relationship: "1:N"
+    parent: strings
+    primary_key: [string_id, language_code, tag_name]
+    columns:
+      - { name: string_id,      type: VARCHAR(255), nullable: false, pk_order: 1, fk: "strings(string_id,language_code)" }
+      - { name: language_code,  type: VARCHAR(255), nullable: false, pk_order: 2, fk: "strings(string_id,language_code)" }
+      - { name: tag_name,       xsd_attr: tag_name, type: VARCHAR(255), nullable: false, pk_order: 3 }
+      - { name: weight,         xsd_attr: weight,   type: INT,          nullable: true }
